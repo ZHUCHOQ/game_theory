@@ -6,15 +6,6 @@ GAME_SIZE = (10, 10)
 MIN_VAL = -100
 MAX_VAL = 100
 
-# ANSI коды для цветового выделения
-class Colors:
-    RED = '\033[91m'
-    GREEN = '\033[92m'
-    BLUE = '\033[94m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-    RESET = '\033[0m'
-
 def generate_bimatrix(rows, cols, min_val, max_val):
     """Генерация случайной биматричной игры"""
     matrix = []
@@ -122,6 +113,14 @@ def print_matrix_with_highlight(matrix, pareto_indices=None, nash_indices=None):
     rows = len(matrix)
     cols = len(matrix[0])
     
+    # Определяем максимальную длину элементов для форматирования
+    max_len = 0
+    for i in range(rows):
+        for j in range(cols):
+            cell_len = len(f"({matrix[i][j][0]}, {matrix[i][j][1]})")
+            if cell_len > max_len:
+                max_len = cell_len
+    
     print("Матрица выигрышей с выделением оптимальных стратегий:")
     for i in range(rows):
         for j in range(cols):
@@ -132,14 +131,22 @@ def print_matrix_with_highlight(matrix, pareto_indices=None, nash_indices=None):
             is_nash = nash_indices and (i, j) in nash_indices
             
             if is_pareto and is_nash:
-                cell = f"{Colors.BLUE}{Colors.BOLD}{Colors.UNDERLINE}{cell}{Colors.RESET}"
+                cell = f"[{cell:^{max_len}}]"  # Оба критерия
             elif is_pareto:
-                cell = f"{Colors.RED}{Colors.BOLD}{cell}{Colors.RESET}"
+                cell = f"<{cell:^{max_len}}>"  # Только Парето
             elif is_nash:
-                cell = f"{Colors.GREEN}{Colors.UNDERLINE}{cell}{Colors.RESET}"
+                cell = f"{{{cell:^{max_len}}}}"  # Только Нэш
+            else:
+                cell = f" {cell:^{max_len}} "  # Без выделения
                 
             print(cell, end=" ")
         print()
+    
+    # Легенда
+    print("\nЛегенда:")
+    print("< > - Парето-оптимальная ситуация")
+    print("{ } - Равновесие Нэша")
+    print("[ ] - Парето-оптимальная ситуация и равновесие Нэша")
 
 def print_detailed_analysis(matrix, pareto_indices, nash_indices, game_name=""):
     """Подробный анализ оптимальных ситуаций"""
@@ -152,9 +159,12 @@ def print_detailed_analysis(matrix, pareto_indices, nash_indices, game_name=""):
         print(f"  Позиция ({i}, {j}): {payoff}")
         
     print("\nРавновесия Нэша:")
-    for i, j in nash_indices:
-        payoff = matrix[i][j]
-        print(f"  Позиция ({i}, {j}): {payoff}")
+    if nash_indices:
+        for i, j in nash_indices:
+            payoff = matrix[i][j]
+            print(f"  Позиция ({i}, {j}): {payoff}")
+    else:
+        print("  Равновесий Нэша не найдено")
     
     # Пересечение множеств (ситуации, оптимальные по обоим критериям)
     intersection = set(pareto_indices) & set(nash_indices)
@@ -229,7 +239,9 @@ if __name__ == "__main__":
     
     # Вывод матрицы игры
     print("Матрица выигрышей для варианта 9:")
-    print_matrix_with_highlight(variant_9_matrix)
+    pareto_optimal_v9 = find_pareto_optimal(variant_9_matrix)
+    nash_equilibria_v9 = find_nash_equilibria(variant_9_matrix)
+    print_matrix_with_highlight(variant_9_matrix, pareto_optimal_v9, nash_equilibria_v9)
     
     # Вывод результатов анализа
     print("\nРезультаты анализа:")
@@ -280,11 +292,9 @@ if __name__ == "__main__":
     analyze_known_game(battle_of_sexes, "Семейный спор")
     
     # 2. Перекресток (Crossroad)
-    # Для этой игры добавим небольшой ε, чтобы избежать вырожденности
-    epsilon = 0.001
     crossroad = [
-        [(1.0, 1.0), (1-epsilon, 2.0)],
-        [(2.0, 1-epsilon), (0.0, 0.0)]
+        [(1.0, 1.0), (0.5, 2.0)],
+        [(2.0, 0.5), (0.0, 0.0)]
     ]
     analyze_known_game(crossroad, "Перекресток")
     
