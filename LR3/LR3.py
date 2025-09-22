@@ -6,13 +6,21 @@ GAME_SIZE = (10, 10)
 MIN_VAL = -100
 MAX_VAL = 100
 
+# ANSI коды для цветового выделения
+class Colors:
+    RED = '\033[91m'
+    GREEN = '\033[92m'
+    BLUE = '\033[94m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+    RESET = '\033[0m'
+
 def generate_bimatrix(rows, cols, min_val, max_val):
     """Генерация случайной биматричной игры"""
     matrix = []
     for i in range(rows):
         row = []
         for j in range(cols):
-            # Случайные выигрыши для двух игроков
             p1 = random.randint(min_val, max_val)
             p2 = random.randint(min_val, max_val)
             row.append((p1, p2))
@@ -30,12 +38,9 @@ def find_pareto_optimal(matrix):
             current = matrix[i][j]
             is_dominated = False
             
-            # Проверка, доминируется ли текущая ситуация другими
             for x in range(rows):
                 for y in range(cols):
                     other = matrix[x][y]
-                    # Ситуация доминируется, если существует другая ситуация,
-                    # которая не хуже по всем показателям и лучше хотя бы по одному
                     if (other[0] >= current[0] and other[1] >= current[1]) and \
                        (other[0] > current[0] or other[1] > current[1]):
                         is_dominated = True
@@ -88,7 +93,9 @@ def analyze_2x2_game(matrix):
     B = np.array([[matrix[0][0][1], matrix[0][1][1]],
                  [matrix[1][0][1], matrix[1][1][1]]])
     
-    # Вычисление смешанного равновесия по формулам
+    mixed_nash = None
+    payoffs = None
+    
     try:
         u = np.array([1, 1])
         A_inv = np.linalg.inv(A)
@@ -104,12 +111,9 @@ def analyze_2x2_game(matrix):
         if all(0 <= p <= 1 for p in x) and all(0 <= p <= 1 for p in y):
             mixed_nash = (x.tolist(), y.tolist())
             payoffs = (v1, v2)
-        else:
-            mixed_nash = None
-            payoffs = None
-    except:
-        mixed_nash = None
-        payoffs = None
+    except np.linalg.LinAlgError:
+        # Матрицы вырождены, смешанного равновесия нет
+        pass
     
     return pure_nash, mixed_nash, payoffs
 
@@ -118,17 +122,8 @@ def print_matrix_with_highlight(matrix, pareto_indices=None, nash_indices=None):
     rows = len(matrix)
     cols = len(matrix[0])
     
-    # ANSI коды для цветового выделения
-    RED = '\033[91m'
-    GREEN = '\033[92m'
-    BLUE = '\033[94m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-    RESET = '\033[0m'
-    
-    print("Матрица выигрышей:")
+    print("Матрица выигрышей с выделением оптимальных стратегий:")
     for i in range(rows):
-        row_str = ""
         for j in range(cols):
             cell = f"({matrix[i][j][0]}, {matrix[i][j][1]})"
             
@@ -137,24 +132,73 @@ def print_matrix_with_highlight(matrix, pareto_indices=None, nash_indices=None):
             is_nash = nash_indices and (i, j) in nash_indices
             
             if is_pareto and is_nash:
-                cell = f"{BLUE}{BOLD}{UNDERLINE}{cell}{RESET}"
+                cell = f"{Colors.BLUE}{Colors.BOLD}{Colors.UNDERLINE}{cell}{Colors.RESET}"
             elif is_pareto:
-                cell = f"{RED}{BOLD}{cell}{RESET}"
+                cell = f"{Colors.RED}{Colors.BOLD}{cell}{Colors.RESET}"
             elif is_nash:
-                cell = f"{GREEN}{UNDERLINE}{cell}{RESET}"
+                cell = f"{Colors.GREEN}{Colors.UNDERLINE}{cell}{Colors.RESET}"
                 
-            row_str += cell + " "
-        print(row_str)
+            print(cell, end=" ")
+        print()
+
+def print_detailed_analysis(matrix, pareto_indices, nash_indices, game_name=""):
+    """Подробный анализ оптимальных ситуаций"""
+    if game_name:
+        print(f"\nАнализ игры '{game_name}':")
+    
+    print("Парето-оптимальные ситуации:")
+    for i, j in pareto_indices:
+        payoff = matrix[i][j]
+        print(f"  Позиция ({i}, {j}): {payoff}")
+        
+    print("\nРавновесия Нэша:")
+    for i, j in nash_indices:
+        payoff = matrix[i][j]
+        print(f"  Позиция ({i}, {j}): {payoff}")
+    
+    # Пересечение множеств (ситуации, оптимальные по обоим критериям)
+    intersection = set(pareto_indices) & set(nash_indices)
+    print("\nПересечение множеств (Парето-оптимальные и равновесия Нэша):")
+    if intersection:
+        for i, j in intersection:
+            payoff = matrix[i][j]
+            print(f"  Позиция ({i}, {j}): {payoff}")
+    else:
+        print("  Пересечений нет")
+
+def analyze_known_game(matrix, game_name):
+    """Анализ известной игры"""
+    print(f"\n{'-'*60}")
+    print(f"Анализ игры: {game_name}")
+    print(f"{'-'*60}")
+    
+    # Поиск оптимальных ситуаций
+    pareto_optimal = find_pareto_optimal(matrix)
+    nash_equilibria = find_nash_equilibria(matrix)
+    
+    # Вывод матрицы с выделением оптимальных стратегий
+    print_matrix_with_highlight(matrix, pareto_optimal, nash_equilibria)
+    
+    # Подробный анализ
+    print_detailed_analysis(matrix, pareto_optimal, nash_equilibria, game_name)
+
+# Классическая дилемма заключенного
+def classical_prisoners_dilemma():
+    """Классическая дилемма заключенного"""
+    return [
+        [(-1, -1), (-3, 0)],
+        [(0, -3), (-2, -2)]
+    ]
 
 # Основная часть программы
 if __name__ == "__main__":
     # Задание 1: Случайная игра 10×10
-    random.seed(42)  # Для воспроизводимости результатов
+    random.seed(42)
     game_matrix = generate_bimatrix(10, 10, MIN_VAL, MAX_VAL)
     
-    print("=" * 50)
+    print("=" * 60)
     print("ЗАДАНИЕ 1: Случайная биматричная игра 10×10")
-    print("=" * 50)
+    print("=" * 60)
     
     # Поиск оптимальных ситуаций
     pareto_optimal = find_pareto_optimal(game_matrix)
@@ -167,10 +211,13 @@ if __name__ == "__main__":
     # Вывод матрицы с выделением оптимальных стратегий
     print_matrix_with_highlight(game_matrix, pareto_optimal, nash_equilibria)
     
-    # Задание 2: Анализ игры 2×2 для варианта 9
-    print("\n" + "=" * 50)
+    # Подробный анализ оптимальных ситуаций
+    print_detailed_analysis(game_matrix, pareto_optimal, nash_equilibria, "Случайная игра 10×10")
+    
+    # Задание 2: Анализ игры для варианта 9
+    print("\n" + "=" * 60)
     print("ЗАДАНИЕ 2: Анализ игры для варианта 9")
-    print("=" * 50)
+    print("=" * 60)
     
     variant_9_matrix = [
         [(5, 1), (10, 4)],
@@ -182,12 +229,7 @@ if __name__ == "__main__":
     
     # Вывод матрицы игры
     print("Матрица выигрышей для варианта 9:")
-    print("Первый игрок (строка):")
-    print(f"  Стратегия 1: {variant_9_matrix[0][0]}, {variant_9_matrix[0][1]}")
-    print(f"  Стратегия 2: {variant_9_matrix[1][0]}, {variant_9_matrix[1][1]}")
-    print("Второй игрок (столбец):")
-    print(f"  Стратегия 1: {variant_9_matrix[0][0]}, {variant_9_matrix[1][0]}")
-    print(f"  Стратегия 2: {variant_9_matrix[0][1]}, {variant_9_matrix[1][1]}")
+    print_matrix_with_highlight(variant_9_matrix)
     
     # Вывод результатов анализа
     print("\nРезультаты анализа:")
@@ -224,3 +266,35 @@ if __name__ == "__main__":
                 print(f"    Второму игроку невыгодно менять стратегию ({variant_9_matrix[i][j][1]} >= {other_payoff})")
             else:
                 print(f"    Второму игроку выгодно менять стратегию ({variant_9_matrix[i][j][1]} < {other_payoff})")
+    
+    # Анализ известных игр
+    print("\n" + "=" * 60)
+    print("АНАЛИЗ ИЗВЕСТНЫХ ИГР")
+    print("=" * 60)
+    
+    # 1. Семейный спор (Battle of the Sexes)
+    battle_of_sexes = [
+        [(4, 1), (0, 0)],
+        [(0, 0), (1, 4)]
+    ]
+    analyze_known_game(battle_of_sexes, "Семейный спор")
+    
+    # 2. Перекресток (Crossroad)
+    # Для этой игры добавим небольшой ε, чтобы избежать вырожденности
+    epsilon = 0.001
+    crossroad = [
+        [(1.0, 1.0), (1-epsilon, 2.0)],
+        [(2.0, 1-epsilon), (0.0, 0.0)]
+    ]
+    analyze_known_game(crossroad, "Перекресток")
+    
+    # 3. Дилемма заключенного (Prisoner's Dilemma)
+    prisoners_dilemma = [
+        [(-5, -5), (0, -10)],
+        [(-10, 0), (-1, -1)]
+    ]
+    analyze_known_game(prisoners_dilemma, "Дилемма заключенного (заданная)")
+    
+    # 4. Классическая дилемма заключенного
+    classical_pd = classical_prisoners_dilemma()
+    analyze_known_game(classical_pd, "Классическая дилемма заключенного")
