@@ -10,121 +10,128 @@ C = np.array([
     [8, 2, 11]
 ])
 
-# Инициализация
+# ========== АНАЛИТИЧЕСКИЙ МЕТОД (корректный) ==========
+print("АНАЛИТИЧЕСКИЙ МЕТОД (ОБРАТНОЙ МАТРИЦЫ)")
+print("=" * 50)
+
+C_inv = np.linalg.inv(C)
+u = np.ones(C.shape[0])
+uC_inv = u @ C_inv
+uC_inv_uT = u @ C_inv @ u.T
+v_analytic = 1 / uC_inv_uT
+x_analytic = v_analytic * uC_inv
+y_analytic = v_analytic * (C_inv @ u.T)
+
+print(f"Цена игры v = {v_analytic:.6f}")
+print(f"Оптимальная стратегия игрока A: {x_analytic}")
+print(f"Оптимальная стратегия игрока B: {y_analytic}")
+
+# ========== ИСПРАВЛЕННЫЙ МЕТОД БРАУНА-РОБИНСОНА ==========
+print("\n" + "=" * 50)
+print("ИСПРАВЛЕННЫЙ МЕТОД БРАУНА-РОБИНСОНА")
+print("=" * 50)
+
+# Инициализация (как в документе - частоты использования стратегий)
 n = 3
-x_count = np.zeros(n)  # Счетчик стратегий игрока A
-y_count = np.zeros(n)  # Счетчик стратегий игрока B
+x_freq = np.zeros(n)  # Частоты стратегий игрока A (аналогично ˜x_i[k] в документе)
+y_freq = np.zeros(n)  # Частоты стратегий игрока B (аналогично ˜y_j[k] в документе)
 
-# Накопленные суммы выигрышей для каждой стратегии
-A_accumulated = np.zeros(n)  # Для игрока A
-B_accumulated = np.zeros(n)  # Для игрока B
+# Накопленные выигрыши (для вычисления оценок)
+A_accumulated = np.zeros(n)  # Накопленные выигрыши для стратегий A
+B_accumulated = np.zeros(n)  # Накопленные проигрыши для стратегий B
 
-# История для таблицы (первые 10 и последние 10 итераций)
+# История для таблицы
 first_10 = []
-last_10 = deque(maxlen=10)  # deque для хранения последних 10 итераций
+last_10 = deque(maxlen=10)
 
-# История для графиков (каждые 50 итераций)
-history_for_plots = []
-
-# Максимальное число итераций
 max_iterations = 10000
 
-# Итерационный процесс
 for k in range(1, max_iterations + 1):
-    # Выбор стратегий на текущей итерации
+    # Выбор стратегий (как в документе)
     if k == 1:
-        # На первой итерации выбираем произвольно
-        choice_A = 0
-        choice_B = 0
+        i_k, j_k = 0, 0  # Произвольный начальный выбор
     else:
-        # Игрок A выбирает стратегию с максимальным накопленным выигрышем
-        choice_A = np.argmax(A_accumulated)
-        # Игрок B выбирает стратегию с минимальным накопленным проигрышем
-        choice_B = np.argmin(B_accumulated)
+        # Игрок A выбирает стратегию, максимизирующую выигрыш против эмпирической стратегии B
+        i_k = np.argmax(A_accumulated)
+        # Игрок B выбирает стратегию, минимизирующую проигрыш против эмпирической стратегии A  
+        j_k = np.argmin(B_accumulated)
     
-    # Обновляем счетчики стратегий
-    x_count[choice_A] += 1
-    y_count[choice_B] += 1
+    # Обновление частот (как в документе: ˜x_i[k] и ˜y_j[k])
+    x_freq[i_k] += 1
+    y_freq[j_k] += 1
     
-    # Обновляем накопленные суммы выигрышей
+    # Обновление накопленных выигрышей (для вычисления оценок)
     for i in range(n):
-        A_accumulated[i] += C[i, choice_B]
+        A_accumulated[i] += C[i, j_k]  # Выигрыш стратегии i против выбора j_k
     
     for j in range(n):
-        B_accumulated[j] += C[choice_A, j]
+        B_accumulated[j] += C[i_k, j]  # Проигрыш стратегии j против выбора i_k
     
-    # Вычисляем оценки цены игры
-    upper = np.max(A_accumulated) / k
-    lower = np.min(B_accumulated) / k
+    # Вычисление оценок цены игры (как в документе)
+    upper = np.max(A_accumulated) / k  # ¯v[k]/k
+    lower = np.min(B_accumulated) / k  # v[k]/k
     epsilon = upper - lower
     
-    # Формируем запись для истории
+    # Сохранение истории (частоты использования стратегий, как в документе)
     record = {
         'k': k,
-        'choice_A': f'x{choice_A + 1}',
-        'choice_B': f'y{choice_B + 1}',
-        'A_accumulated': A_accumulated.copy(),
-        'B_accumulated': B_accumulated.copy(),
+        'choice_A': f'x{i_k + 1}',
+        'choice_B': f'y{j_k + 1}',
+        'x_freq': x_freq.copy(),  # Частоты использования стратегий A
+        'y_freq': y_freq.copy(),  # Частоты использования стратегий B
         'upper': upper,
         'lower': lower,
         'epsilon': epsilon
     }
     
-    # Сохраняем первые 10 итераций
     if k <= 10:
         first_10.append(record)
-    
-    # Сохраняем последние 10 итераций
     last_10.append(record)
     
-    # Сохраняем для графиков каждые 50 итераций
-    if k % 50 == 0:
-        history_for_plots.append(record)
-    
-    # Проверка условия останова
     if epsilon <= 0.1:
         break
 
-# Формируем итоговую таблицу из первых 10 и последних 10 итераций
+# Формирование таблицы (частоты использования стратегий, как в документе)
 table_data = []
 for record in first_10 + list(last_10):
     row = [
         record['k'],
         record['choice_A'],
         record['choice_B'],
-        *record['A_accumulated'],
-        *record['B_accumulated'],
-        f"{record['upper']:.2f}",
-        f"{record['lower']:.2f}",
-        f"{record['epsilon']:.4f}"
+        *record['x_freq'],  # Частоты использования стратегий A
+        *record['y_freq'],  # Частоты использования стратегий B
+        f"{record['upper']:.4f}",
+        f"{record['lower']:.4f}", 
+        f"{record['epsilon']:.6f}"
     ]
     table_data.append(row)
 
-# Заголовки таблицы
-headers = [
-    'k', 'A', 'B',
-    'x1', 'x2', 'x3',
-    'y1', 'y2', 'y3',
-    'Верхняя', 'Нижняя', 'ε'
-]
+headers = ['k', 'A', 'B', 'x1', 'x2', 'x3', 'y1', 'y2', 'y3', 'Верхняя', 'Нижняя', 'ε']
 
-# Выводим таблицу
-html_table = tabulate(table_data, headers=headers, tablefmt='html', floatfmt=".4f")
+print("Результаты метода Брауна-Робинсона (первые 10 и последние 10 итераций):")
+print(tabulate(table_data, headers=headers, tablefmt='grid'))
 
-# Сохраняем таблицу в текстовый файл для удобного копирования
-with open('results_table.html', 'w', encoding='utf-8') as f:
-    f.write(html_table)
-
-# Финальные результаты
-x_avg = x_count / k
-y_avg = y_count / k
-upper = np.max(A_accumulated) / k
-lower = np.min(B_accumulated) / k
-epsilon = upper - lower
+# Финальные результаты (средние стратегии)
+x_avg = x_freq / k
+y_avg = y_freq / k
 v_approx = (upper + lower) / 2
 
 print(f"\nФинальные результаты после {k} итераций:")
-print(f"Приближенная цена игры: {v_approx:.3f}")
-print(f"Погрешность: {epsilon:.4f}")
-print(f"Стратегия игрока A: {x_avg}")
-print(f"Стратегия игрока B: {y_avg}")
+print(f"Приближенная цена игры: {v_approx:.6f}")
+print(f"Погрешность: {epsilon:.6f}")
+print(f"Стратегия игрока A: [{', '.join([f'{x:.6f}' for x in x_avg])}]")
+print(f"Стратегия игрока B: [{', '.join([f'{y:.6f}' for y in y_avg])}]")
+
+# Сравнение с аналитическим методом
+print("\n" + "=" * 50)
+print("СРАВНЕНИЕ С АНАЛИТИЧЕСКИМ МЕТОДОМ")
+print("=" * 50)
+print(f"Аналитическая цена игры: {v_analytic:.6f}")
+print(f"Численная цена игры: {v_approx:.6f}")
+print(f"Разница: {abs(v_analytic - v_approx):.6f}")
+
+# Проверка: должны получить стратегии, близкие к аналитическим
+print(f"\nАналитическая стратегия A: {x_analytic}")
+print(f"Численная стратегия A: {x_avg}")
+print(f"Аналитическая стратегия B: {y_analytic}")
+print(f"Численная стратегия B: {y_avg}")
