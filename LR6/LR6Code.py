@@ -151,47 +151,6 @@ def simulate_opinion_dynamics(n_agents=9, epsilon=1e-6, max_iter=1000):
     print("\nРейтинг агентов по влиянию:")
     for rank, agent in enumerate(most_influential):
         print(f"{rank+1}. Агент {agent} (влияние: {stationary_distribution[agent]:.4f})")
-    
-    # 5. Дополнительный анализ
-    print("\n\n5. ДОПОЛНИТЕЛЬНЫЙ АНАЛИЗ")
-    print("-" * 50)
-    
-    final_no_control = history[-1][0]
-    final_with_control = history_controlled[-1][0]
-    
-    print(f"Итоговое мнение без управления: {final_no_control:.3f}")
-    print(f"Итоговое мнение с управлением: {final_with_control:.3f}")
-    
-    control_effect = final_with_control - final_no_control
-    print(f"Изменение мнения под воздействием управления: {control_effect:.3f}")
-    
-    if control_effect > 0:
-        print("Управление сместило мнение в положительную сторону")
-    else:
-        print("Управление сместило мнение в отрицательную сторону")
-    
-    # Анализ вклада агентов
-    print("\nАнализ вклада агентов в итоговое мнение:")
-    weighted_sum = 0
-    for i, (weight, opinion) in enumerate(zip(stationary_distribution, x0_controlled)):
-        contribution = weight * opinion
-        weighted_sum += contribution
-        
-        agent_type = ""
-        if i in player1_agents:
-            agent_type = " (игрок 1)"
-        elif i in player2_agents:
-            agent_type = " (игрок 2)"
-        else:
-            agent_type = " (нейтральный)"
-        
-        print(f"Агент {i}{agent_type}: вес={weight:.4f}, мнение={opinion:.3f}, вклад={contribution:.3f}")
-    
-    print(f"\nСумма вкладов: {weighted_sum:.3f}")
-    print(f"Итоговое мнение: {final_with_control:.3f}")
-    print(f"Разница: {abs(weighted_sum - final_with_control):.6f} (должна быть близка к 0)")
-    
-    return A, x0, x0_controlled, stationary_distribution
 
 # Запуск моделирования
 if __name__ == "__main__":

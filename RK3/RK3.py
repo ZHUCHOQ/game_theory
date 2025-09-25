@@ -297,80 +297,7 @@ def analyze_sensitivity(r_f, r_s, X0, X_max_f, X_max_s):
 analyze_sensitivity(r_f, r_s, X0, X_max_f, X_max_s)
 
 # =============================================================================
-# 9. ВИЗУАЛИЗАЦИЯ РЕЗУЛЬТАТОВ
-# =============================================================================
-
-# Создаем сетку значений для u и v в диапазоне [0, 1]
-u_values = np.linspace(0, 1, 50)
-v_values = np.linspace(0, 1, 50)
-U, V = np.meshgrid(u_values, v_values)
-
-# Вычисляем целевые функции на сетке
-Z_f = np.zeros_like(U)
-Z_s = np.zeros_like(U)
-Z_X = np.zeros_like(U)
-
-for i in range(len(u_values)):
-    for j in range(len(v_values)):
-        Z_f[j, i] = -objective_f(U[j, i], V[j, i], r_f, r_s, X0, a, b, gf)
-        Z_s[j, i] = -objective_s(U[j, i], V[j, i], r_f, r_s, X0, c, d, gs)
-        Z_X[j, i] = final_opinion(U[j, i], V[j, i], r_f, r_s, X0)
-
-# Визуализация
-fig, axes = plt.subplots(2, 2, figsize=(15, 12))
-
-# График целевой функции первого игрока
-contour1 = axes[0,0].contourf(U, V, Z_f, levels=20, cmap='viridis')
-axes[0,0].contour(U, V, Z_f, levels=10, colors='black', linewidths=0.5)
-axes[0,0].plot(u_opt, v_opt, 'ro', markersize=10, label=f'Равновесие Нэша')
-axes[0,0].set_xlabel('u (управление первого игрока)')
-axes[0,0].set_ylabel('v (управление второго игрока)')
-axes[0,0].set_title('Целевая функция первого игрока Φ_f(u,v)')
-axes[0,0].legend()
-axes[0,0].grid(True, alpha=0.3)
-plt.colorbar(contour1, ax=axes[0,0])
-
-# График целевой функции второго игрока
-contour2 = axes[0,1].contourf(U, V, Z_s, levels=20, cmap='plasma')
-axes[0,1].contour(U, V, Z_s, levels=10, colors='black', linewidths=0.5)
-axes[0,1].plot(u_opt, v_opt, 'ro', markersize=10, label=f'Равновесие Нэша')
-axes[0,1].set_xlabel('u (управление первого игрока)')
-axes[0,1].set_ylabel('v (управление второго игрока)')
-axes[0,1].set_title('Целевая функция второго игрока Φ_s(u,v)')
-axes[0,1].legend()
-axes[0,1].grid(True, alpha=0.3)
-plt.colorbar(contour2, ax=axes[0,1])
-
-# График итогового мнения
-contour3 = axes[1,0].contourf(U, V, Z_X, levels=20, cmap='coolwarm')
-axes[1,0].contour(U, V, Z_X, levels=10, colors='black', linewidths=0.5)
-axes[1,0].plot(u_opt, v_opt, 'ro', markersize=10, label=f'Равновесие Нэша: X={X_final:.3f}')
-axes[1,0].axhline(y=0, color='red', linestyle='--', alpha=0.5, label=f'X_max_f={X_max_f:.3f}')
-axes[1,0].axvline(x=0, color='blue', linestyle='--', alpha=0.5, label=f'X_max_s={X_max_s:.3f}')
-axes[1,0].set_xlabel('u (управление первого игрока)')
-axes[1,0].set_ylabel('v (управление второго игрока)')
-axes[1,0].set_title('Итоговое мнение агентов X(u,v)')
-axes[1,0].legend()
-axes[1,0].grid(True, alpha=0.3)
-plt.colorbar(contour3, ax=axes[1,0])
-
-# График расстояний до точек утопии
-Z_dist = np.abs(Z_X - X_max_f) + np.abs(Z_X - X_max_s)
-contour4 = axes[1,1].contourf(U, V, Z_dist, levels=20, cmap='hot')
-axes[1,1].contour(U, V, Z_dist, levels=10, colors='white', linewidths=0.5)
-axes[1,1].plot(u_opt, v_opt, 'ro', markersize=10, label=f'Равновесие Нэша')
-axes[1,1].set_xlabel('u (управление первого игрока)')
-axes[1,1].set_ylabel('v (управление второго игрока)')
-axes[1,1].set_title('Суммарное расстояние до точек утопии')
-axes[1,1].legend()
-axes[1,1].grid(True, alpha=0.3)
-plt.colorbar(contour4, ax=axes[1,1])
-
-plt.tight_layout()
-plt.show()
-
-# =============================================================================
-# 10. ФИНАЛЬНЫЕ РЕЗУЛЬТАТЫ
+# 9. ФИНАЛЬНЫЕ РЕЗУЛЬТАТЫ
 # =============================================================================
 
 print("\n" + "="*80)
@@ -385,13 +312,3 @@ print(f"Итоговое мнение: X={X_final:.3f}")
 print(f"Точки утопии: X_max_f={X_max_f:.3f}, X_max_s={X_max_s:.3f}")
 print(f"Расстояния: Δ_f={distance_f:.3f}, Δ_s={distance_s:.3f}")
 print(f"РЕЗУЛЬТАТ: {winner}")
-
-# Проверка корректности решения
-print("\n" + "="*80)
-print("ПРОВЕРКА КОРРЕКТНОСТИ РЕШЕНИЯ:")
-print("1. Матрица A стохастическая:", np.allclose(np.sum(A, axis=1), 1.0, atol=1e-10))
-print("2. Сумма элементов вектора r равна 1:", np.isclose(r.sum(), 1.0, atol=1e-10))
-print("3. Все строки A∞ одинаковы:", np.allclose(A_inf, np.tile(r, (n_agents, 1)), atol=1e-10))
-print("4. Управления в допустимом диапазоне [0,1]:", 
-      f"u*={u_opt:.3f} ∈ [0,1]: {0 <= u_opt <= 1}, "
-      f"v*={v_opt:.3f} ∈ [0,1]: {0 <= v_opt <= 1}")
